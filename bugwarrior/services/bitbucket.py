@@ -2,9 +2,8 @@ from __future__ import unicode_literals
 
 import requests
 
-from bugwarrior import data
 from bugwarrior.services import IssueService, Issue, ServiceClient
-from bugwarrior.config import asbool, die
+from bugwarrior.config import asbool, aslist, die
 
 import logging
 log = logging.getLogger(__name__)
@@ -24,7 +23,7 @@ class BitbucketIssue(Issue):
             'label': 'Bitbucket URL',
         },
         FOREIGN_ID: {
-            'type': 'string',
+            'type': 'numeric',
             'label': 'Bitbucket Issue ID',
         }
     }
@@ -73,7 +72,7 @@ class BitbucketService(IssueService, ServiceClient):
         secret = self.config_get_default('secret')
         auth = {'oauth': (key, secret)}
 
-        refresh_token = data.get('bitbucket_refresh_token')
+        refresh_token = self.data.get('bitbucket_refresh_token')
 
         if not refresh_token:
             login = self.config_get('login')
@@ -95,7 +94,8 @@ class BitbucketService(IssueService, ServiceClient):
                           'password': password},
                     auth=auth['oauth']).json()
 
-                data.set('bitbucket_refresh_token', response['refresh_token'])
+                self.data.set('bitbucket_refresh_token',
+                              response['refresh_token'])
 
             auth['token'] = response['access_token']
 
@@ -106,19 +106,8 @@ class BitbucketService(IssueService, ServiceClient):
         elif 'basic' in auth:
             self.requests_kwargs['auth'] = auth['basic']
 
-        self.exclude_repos = []
-        if self.config_get_default('exclude_repos', None):
-            self.exclude_repos = [
-                item.strip() for item in
-                self.config_get('exclude_repos').strip().split(',')
-            ]
-
-        self.include_repos = []
-        if self.config_get_default('include_repos', None):
-            self.include_repos = [
-                item.strip() for item in
-                self.config_get('include_repos').strip().split(',')
-            ]
+        self.exclude_repos = self.config_get_default('exclude_repos', [], aslist)
+        self.include_repos = self.config_get_default('include_repos', [], aslist)
 
         self.filter_merge_requests = self.config_get_default(
             'filter_merge_requests', default=False, to_type=asbool

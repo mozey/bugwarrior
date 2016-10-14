@@ -46,6 +46,7 @@ class TestRedmineIssue(AbstractServiceTest, ServiceTest):
     }
 
     def setUp(self):
+        super(TestRedmineIssue, self).setUp()
         self.service = self.get_mock_service(RedMineService)
 
     def test_to_taskwarrior(self):
@@ -73,7 +74,7 @@ class TestRedmineIssue(AbstractServiceTest, ServiceTest):
     @responses.activate
     def test_issues(self):
         self.add_response(
-            'https://something/issues.json?assigned_to_id=10834u0234',
+            'https://something/issues.json?assigned_to_id=10834u0234&limit=100',
             json={'issues': [self.arbitrary_issue]})
 
         issue = next(self.service.issues())

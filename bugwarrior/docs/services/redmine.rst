@@ -4,10 +4,12 @@ Redmine
 You can import tasks from your Redmine instance using
 the ``redmine`` service name.
 
+Only first 100 issues are imported at the moment.
+
 Example Service
 ---------------
 
-Here's an example of an Redmine target::
+Here's an example of a Redmine target::
 
     [my_issue_tracker]
     service = redmine

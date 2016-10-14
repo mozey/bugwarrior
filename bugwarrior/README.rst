@@ -22,6 +22,7 @@ It currently supports the following remote resources:
  - `activecollab <https://www.activecollab.com>`_ (2.x and 4.x)
  - `phabricator <http://phabricator.org/>`_
  - `versionone <http://www.versionone.com/>`_
+ - `trello <https://trello.com/>`_
 
 Documentation
 -------------
@@ -62,3 +63,5 @@ Contributors
 - Luke Macken (contributed some code cleaning)
 - James Rowe (contributed to the docs)
 - Adam Coddington (anti-entropy crusader)
+- Iain R. Learmonth (contributed support for the Debian BTS and maintains the
+  Debian package)

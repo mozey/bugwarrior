@@ -4,7 +4,7 @@ import six
 import requests
 from jinja2 import Template
 
-from bugwarrior.config import asbool, die
+from bugwarrior.config import asbool, aslist, die
 from bugwarrior.services import IssueService, Issue, ServiceClient
 
 import logging
@@ -28,7 +28,7 @@ class GithubClient(ServiceClient):
         return user_repos + public_repos
 
     def get_involved_issues(self, username):
-        tmpl = "https://api.github.com/search/issues?q=involves%3A{username}&per_page=100"
+        tmpl = "https://api.github.com/search/issues?q=involves%3A{username}%20state%3Aopen&per_page=100"
         url = tmpl.format(username=username)
         return self._getter(url, subkey='items')
 
@@ -127,7 +127,7 @@ class GithubIssue(Issue):
             'label': 'Github Updated',
         },
         MILESTONE: {
-            'type': 'numeric',
+            'type': 'string',
             'label': 'Github Milestone',
         },
         REPO: {
@@ -155,7 +155,7 @@ class GithubIssue(Issue):
     def to_taskwarrior(self):
         milestone = self.record['milestone']
         if milestone:
-            milestone = milestone['id']
+            milestone = milestone['title']
 
         body = self.record['body']
         if body:
@@ -232,19 +232,8 @@ class GithubService(IssueService):
 
         self.client = GithubClient(auth)
 
-        self.exclude_repos = []
-        if self.config_get_default('exclude_repos', None):
-            self.exclude_repos = [
-                item.strip() for item in
-                self.config_get('exclude_repos').strip().split(',')
-            ]
-
-        self.include_repos = []
-        if self.config_get_default('include_repos', None):
-            self.include_repos = [
-                item.strip() for item in
-                self.config_get('include_repos').strip().split(',')
-            ]
+        self.exclude_repos = self.config_get_default('exclude_repos', [], aslist)
+        self.include_repos = self.config_get_default('include_repos', [], aslist)
 
         self.import_labels_as_tags = self.config_get_default(
             'import_labels_as_tags', default=False, to_type=asbool

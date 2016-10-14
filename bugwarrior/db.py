@@ -138,7 +138,7 @@ def find_local_uuid(tw, keys, issue, legacy_matching=False):
             ['serviceBproject', 'serviceBnumber'],
         ]
 
-    * `issue`: A instance of a subclass of `bugwarrior.services.Issue`.
+    * `issue`: An instance of a subclass of `bugwarrior.services.Issue`.
     * `legacy_matching`: By default, this is disabled, and it allows
       the matching algorithm to -- in addition to searching by stored
       issue keys -- search using the task's description for a match.
@@ -287,7 +287,7 @@ def synchronize(issue_generator, conf, main_section, dry_run=False):
         log.info(
             'Service-defined UDAs exist: you can optionally use the '
             '`bugwarrior-uda` command to export a list of UDAs you can '
-            'add to your ~/.taskrc file.'
+            'add to your taskrc file.'
         )
 
     static_fields = static_fields_default = ['priority']
@@ -359,7 +359,7 @@ def synchronize(issue_generator, conf, main_section, dry_run=False):
     log.info("Adding %i tasks", len(issue_updates['new']))
     for issue in issue_updates['new']:
         log.info("Adding task %s%s",
-            issue['description'].encode("utf-8"), notreally)
+            issue['description'], notreally)
         if dry_run:
             continue
         if notify:
@@ -382,8 +382,8 @@ def synchronize(issue_generator, conf, main_section, dry_run=False):
         ])
         log.info(
             "Updating task %s, %s; %s%s",
-            six.text_type(issue['uuid']).encode("utf-8"),
-            issue['description'].encode("utf-8"),
+            six.text_type(issue['uuid']),
+            issue['description'],
             changes,
             notreally
         )
@@ -401,7 +401,7 @@ def synchronize(issue_generator, conf, main_section, dry_run=False):
         log.info(
             "Completing task %s %s%s",
             issue,
-            task_info.get('description', '').encode('utf-8'),
+            task_info.get('description', ''),
             notreally
         )
         if dry_run:

@@ -15,6 +15,7 @@ import six
 from taskw.task import Task
 
 from bugwarrior.config import asbool, die, get_service_password
+from bugwarrior.data import BugwarriorData
 from bugwarrior.db import MARKUP, URLShortener
 
 import logging
@@ -49,6 +50,7 @@ class IssueService(object):
     def __init__(self, config, main_section, target):
         self.config = config
         self.main_section = main_section
+        self.data = BugwarriorData(config, main_section)
         self.target = target
 
         self.desc_len = 35
@@ -196,10 +198,10 @@ class IssueService(object):
     def validate_config(cls, config, target):
         """ Validate generic options for a particular target """
         if config.has_option(target, 'only_if_assigned'):
-            die("[%s] has a 'only_if_assigned' option.  Should be "
+            die("[%s] has an 'only_if_assigned' option.  Should be "
                 "'%s.only_if_assigned'." % (target, cls.CONFIG_PREFIX))
         if config.has_option(target, 'also_unassigned'):
-            die("[%s] has a 'also_unassigned' option.  Should be "
+            die("[%s] has an 'also_unassigned' option.  Should be "
                 "'%s.also_unassigned'." % (target, cls.CONFIG_PREFIX))
 
     def include(self, issue):
@@ -374,12 +376,13 @@ class Issue(object):
             'issue': 'Is',
             'pull_request': 'PR',
             'merge_request': 'MR',
+            'todo': '',
             'task': '',
             'subtask': 'Subtask #',
         }
         url_separator = ' .. '
         url = url if self.origin['inline_links'] else ''
-        return "%s%s#%s - %s%s%s" % (
+        return u"%s%s#%s - %s%s%s" % (
             MARKUP,
             cls_markup[cls],
             number,

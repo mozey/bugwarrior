@@ -1,4 +1,5 @@
 import os
+import sys
 
 from lockfile import LockTimeout
 from lockfile.pidlockfile import PIDLockFile
@@ -28,11 +29,27 @@ def _get_section_name(flavor):
     return 'general'
 
 
+def _try_load_config(main_section, interactive=False):
+    try:
+        return load_config(main_section, interactive)
+    except IOError:
+        # Our standard logging configuration depends on the bugwarrior
+        # configuration file which just failed to load.
+        logging.basicConfig()
+
+        exc_info = sys.exc_info()
+        log.critical("Could not load configuration. "
+                     "Maybe you have not created a configuration file.",
+                     exc_info=(exc_info[0], exc_info[1], None))
+        sys.exit(1)
+
+
 @click.command()
 @click.option('--dry-run', is_flag=True)
 @click.option('--flavor', default=None, help='The flavor to use')
 @click.option('--interactive', is_flag=True)
-@click.option('--debug', is_flag=True)
+@click.option('--debug', is_flag=True,
+              help='Do not use multiprocessing (which breaks pdb).')
 def pull(dry_run, flavor, interactive, debug):
     """ Pull down tasks from forges and add them to your taskwarrior tasks.
 
@@ -41,11 +58,10 @@ def pull(dry_run, flavor, interactive, debug):
 
     try:
         main_section = _get_section_name(flavor)
+        config = _try_load_config(main_section, interactive)
 
-        # Load our config file
-        config = load_config(main_section, interactive)
-
-        lockfile_path = os.path.join(get_data_path(), 'bugwarrior.lockfile')
+        lockfile_path = os.path.join(get_data_path(config, main_section),
+                                     'bugwarrior.lockfile')
         lockfile = PIDLockFile(lockfile_path)
         lockfile.acquire(timeout=10)
         try:
@@ -66,8 +82,6 @@ def pull(dry_run, flavor, interactive, debug):
         )
     except RuntimeError as e:
         log.critical("Aborted (%s)" % e)
-    except:
-        log.exception('oh noes')
 
 
 @click.group()
@@ -135,7 +149,7 @@ def set(target, username):
 @click.option('--flavor', default=None, help='The flavor to use')
 def uda(flavor):
     main_section = _get_section_name(flavor)
-    conf = load_config(main_section)
+    conf = _try_load_config(main_section)
     print "# Bugwarrior UDAs"
     for uda in get_defined_udas_as_strings(conf, main_section):
         print uda

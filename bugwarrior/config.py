@@ -4,11 +4,16 @@ import os
 import subprocess
 import sys
 
+from functools32 import lru_cache
 import six
-from xdg import BaseDirectory
 
 import logging
 log = logging.getLogger(__name__)
+
+
+# The name of the environment variable that can be used to ovewrite the path
+# to the bugwarriorrc file
+BUGWARRIORRC = "BUGWARRIORRC"
 
 
 def asbool(some_value):
@@ -16,6 +21,11 @@ def asbool(some_value):
     return six.text_type(some_value).lower() in [
         'y', 'yes', 't', 'true', '1', 'on'
     ]
+
+
+def aslist(value):
+    """ Cast config values to lists of strings """
+    return [item.strip() for item in value.strip().split(',')]
 
 
 def get_service_password(service, username, oracle=None, interactive=False):
@@ -150,28 +160,39 @@ def validate_config(config, main_section):
         get_service(service).validate_config(config, target)
 
 
+def get_config_path():
+    """
+    Determine the path to the config file. This will return, in this order of
+    precedence:
+    - the value of $BUGWARRIORRC if set
+    - $XDG_CONFIG_HOME/bugwarrior/bugwarriorc if exists
+    - ~/.bugwarriorrc if exists
+    - <dir>/bugwarrior/bugwarriorc if exists, for dir in $XDG_CONFIG_DIRS
+    - $XDG_CONFIG_HOME/bugwarrior/bugwarriorc otherwise
+    """
+    if os.environ.get(BUGWARRIORRC):
+        return os.environ[BUGWARRIORRC]
+    xdg_config_home = (
+        os.environ.get('XDG_CONFIG_HOME') or os.path.expanduser('~/.config'))
+    xdg_config_dirs = (
+        (os.environ.get('XDG_CONFIG_DIRS') or '/etc/xdg').split(':'))
+    paths = [
+        os.path.join(xdg_config_home, 'bugwarrior', 'bugwarriorrc'),
+        os.path.expanduser("~/.bugwarriorrc")]
+    paths += [
+        os.path.join(d, 'bugwarrior', 'bugwarriorrc') for d in xdg_config_dirs]
+    for path in paths:
+        if os.path.exists(path):
+            return path
+    return paths[0]
+
+
 def load_config(main_section, interactive=False):
     config = ConfigParser({'log.level': "INFO", 'log.file': None})
-    path = None
-    first_path = BaseDirectory.load_first_config('bugwarrior')
-    if first_path is not None:
-        path = os.path.join(first_path, 'bugwarriorrc')
-    old_path = os.path.expanduser("~/.bugwarriorrc")
-    if path is None or not os.path.exists(path):
-        if os.path.exists(old_path):
-            path = old_path
-        else:
-            path = os.path.join(BaseDirectory.save_config_path('bugwarrior'), 'bugwarriorrc')
-    config.readfp(
-        codecs.open(
-            path,
-            "r",
-            "utf-8",
-        )
-    )
+    path = get_config_path()
+    config.readfp(codecs.open(path, "r", "utf-8",))
     config.interactive = interactive
     validate_config(config, main_section)
-
     return config
 
 
@@ -184,9 +205,34 @@ def get_taskrc_path(conf, main_section):
     )
 
 
-def get_data_path():
-    return os.path.expanduser(os.getenv('TASKDATA', '~/.task'))
+@lru_cache()
+def get_data_path(config, main_section):
+    taskrc = get_taskrc_path(config, main_section)
 
+    # We cannot use the taskw module here because it doesn't really support
+    # the `_` subcommands properly (`rc:` can't be used for them).
+    line_prefix = 'data.location='
+
+    env={
+        'PATH': os.getenv('PATH'),
+        'TASKRC': taskrc,
+    }
+    # If TASKDATA is set but empty, taskwarrior's data.location is empty.
+    taskdata = os.getenv('TASKDATA')
+    if taskdata:
+        env['TASKDATA'] = taskdata
+
+    tw_show = subprocess.Popen(
+        ('task', '_show'), stdout=subprocess.PIPE, env=env)
+    data_location = subprocess.check_output(
+        ('grep', '-e', '^' + line_prefix), stdin=tw_show.stdout)
+    tw_show.wait()
+    data_path = data_location[len(line_prefix):].rstrip()
+
+    if not data_path:
+        raise RuntimeError('Unable to determine the data location.')
+
+    return os.path.normpath(os.path.expanduser(data_path))
 
 # This needs to be imported here and not above to avoid a circular-import.
 from bugwarrior.services import get_service
